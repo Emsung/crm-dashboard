@@ -29,6 +29,7 @@ interface Conversion {
     firstName?: string | null;
     lastName?: string | null;
     city?: string | null;
+    trialDate?: string | null; // Trial date (from trialBookings.createdAt)
 }
 
 interface CityDashboardProps {
