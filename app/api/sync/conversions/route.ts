@@ -3,31 +3,33 @@ import { db } from '@/lib/db';
 import { trialBookings, conversions } from '@/lib/db/schema';
 import { eq, and, isNull, isNotNull, notInArray, sql } from 'drizzle-orm';
 
-// Platform configurations with API credentials
-const platforms = {
-  DE: {
-    clientId: '9591d82ffbc24ee18f4bbe7e3e92c59b',
-    clientSecret: 'a1a5b237f34e4140ab89a81479f2a1c5118a2aa2cced409fba41076c7beb7813',
-    apiUrl: 'https://12rounds-de.perfectgym.com',
-  },
-  NL: {
-    clientId: 'e8e27a49fb4e425e9e293aa81c194b57',
-    clientSecret: 'cbb6487180e34ec3bdecf7a8cbbdd3212e98086b421d4ed4b5870a59d5c8b7d5',
-    apiUrl: 'https://boxingcommunity.perfectgym.com',
-  },
-  CH: {
-    clientId: '830c954215e646b8ba07320b632f39d8',
-    clientSecret: '484d3e59a7724bb99a0e999fa35d2324106cab1022b84ecdbe99379b09eaff54',
-    apiUrl: 'https://12rounds-ch.perfectgym.com',
-  },
-  AT: {
-    clientId: '94783152f4894e7cb6a1a5937ef350c1',
-    clientSecret: '3966290bcd7742ec85f71d0f26dea9e987c646763f834c9eb558c6b1699896df',
-    apiUrl: 'https://12rounds-at.perfectgym.com',
-  },
-} as const;
+// Platform configurations with API credentials from environment variables
+type Platform = 'DE' | 'NL' | 'CH' | 'AT';
 
-type Platform = keyof typeof platforms;
+function getPlatforms() {
+  return {
+    DE: {
+      clientId: process.env.PERFECTGYM_DE_CLIENT_ID || '',
+      clientSecret: process.env.PERFECTGYM_DE_CLIENT_SECRET || '',
+      apiUrl: process.env.PERFECTGYM_DE_API_URL || 'https://12rounds-de.perfectgym.com',
+    },
+    NL: {
+      clientId: process.env.PERFECTGYM_NL_CLIENT_ID || '',
+      clientSecret: process.env.PERFECTGYM_NL_CLIENT_SECRET || '',
+      apiUrl: process.env.PERFECTGYM_NL_API_URL || 'https://boxingcommunity.perfectgym.com',
+    },
+    CH: {
+      clientId: process.env.PERFECTGYM_CH_CLIENT_ID || '',
+      clientSecret: process.env.PERFECTGYM_CH_CLIENT_SECRET || '',
+      apiUrl: process.env.PERFECTGYM_CH_API_URL || 'https://12rounds-ch.perfectgym.com',
+    },
+    AT: {
+      clientId: process.env.PERFECTGYM_AT_CLIENT_ID || '',
+      clientSecret: process.env.PERFECTGYM_AT_CLIENT_SECRET || '',
+      apiUrl: process.env.PERFECTGYM_AT_API_URL || 'https://12rounds-at.perfectgym.com',
+    },
+  } as const;
+}
 
 // Map country codes to platform codes
 const countryToPlatform: Record<string, Platform> = {
@@ -51,9 +53,16 @@ async function getPerfectGymConfig(country: string): Promise<PerfectGymConfig | 
     return null;
   }
 
-  const platformConfig = platforms[platform];
+  const platforms = getPlatforms();
+  const platformConfig = platforms[platform as Platform];
   if (!platformConfig) {
     console.warn(`No platform config found for: ${platform}`);
+    return null;
+  }
+
+  // Validate that credentials are present
+  if (!platformConfig.clientId || !platformConfig.clientSecret) {
+    console.error(`Missing credentials for platform: ${String(platform)}. Please check your environment variables.`);
     return null;
   }
 
