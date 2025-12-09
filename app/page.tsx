@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getDashboardData, getGuestsData } from "./actions";
 import DashboardWrapper from "@/components/Dashboard/DashboardWrapper";
 import LeadGrid from "@/components/Dashboard/LeadGrid";
@@ -21,7 +22,8 @@ export default async function Home() {
           <p className="text-gray-600">Boxing Gym Analytics & Lead Management</p>
         </div>
 
-        <TabbedLayout 
+        <Suspense fallback={<div className="text-center py-12">Loading...</div>}>
+          <TabbedLayout 
           trialsContent={
             <>
               <DashboardWrapper data={data} />
@@ -47,7 +49,8 @@ export default async function Home() {
               </div>
             </>
           }
-        />
+          />
+        </Suspense>
       </main>
     </>
   );

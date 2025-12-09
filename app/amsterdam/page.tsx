@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getDashboardData, getGuestsData } from "../actions";
 import CityDashboard from "@/components/Dashboard/CityDashboard";
 import GuestsCityDashboard from "@/components/Dashboard/GuestsCityDashboard";
@@ -18,7 +19,8 @@ export default async function AmsterdamPage() {
                     <p className="text-gray-600">Boxing Gym Analytics & Lead Management</p>
                 </div>
 
-                <TabbedLayout
+                <Suspense fallback={<div className="text-center py-12">Loading...</div>}>
+                    <TabbedLayout
                     trialsContent={
                         <CityDashboard 
                             cityName="Amsterdam" 
@@ -33,7 +35,8 @@ export default async function AmsterdamPage() {
                             allConversions={guestsData.guestsWithConversionDetails}
                         />
                     }
-                />
+                    />
+                </Suspense>
             </main>
         </>
     );
