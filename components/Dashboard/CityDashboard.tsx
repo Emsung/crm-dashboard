@@ -25,8 +25,8 @@ interface Conversion {
     id: number;
     memberId: string;
     country?: string | null;
-    memberSince: string;
-    membershipType: string;
+    memberSince: string | null;
+    membershipType: string | null;
     createdAt: string;
     firstName?: string | null;
     lastName?: string | null;

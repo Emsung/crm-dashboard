@@ -16,8 +16,8 @@ interface Guest {
 
 interface Conversion {
     memberId: string;
-    memberSince: string;
-    membershipType: string;
+    memberSince: string | null;
+    membershipType: string | null;
 }
 
 interface GuestsCityComparisonProps {

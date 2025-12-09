@@ -5,8 +5,8 @@ import { useMemo } from 'react';
 interface Conversion {
     id: number;
     memberId: string;
-    memberSince: string;
-    membershipType: string;
+    memberSince: string | null;
+    membershipType: string | null;
     createdAt: string;
 }
 

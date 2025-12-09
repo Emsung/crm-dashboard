@@ -15,8 +15,8 @@ interface Guest {
 
 interface Conversion {
     memberId: string;
-    memberSince: string;
-    membershipType: string;
+    memberSince: string | null;
+    membershipType: string | null;
 }
 
 type Period = 'all' | 'current-month' | 'last-month' | 'last-3-months' | 'this-year' | 'last-year' | 'custom';
