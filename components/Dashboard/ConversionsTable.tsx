@@ -102,7 +102,9 @@ export default function ConversionsTable({ conversions }: ConversionsTableProps)
                                                     ? 'bg-amber-100 text-amber-800'
                                                     : 'bg-indigo-100 text-indigo-800'
                                             }`}>
-                                                {conversion.membershipType === 'course' 
+                                                {!conversion.membershipType 
+                                                    ? 'Unknown'
+                                                    : conversion.membershipType === 'course' 
                                                     ? 'Course Participant'
                                                     : conversion.membershipType.charAt(0).toUpperCase() + conversion.membershipType.slice(1) + ' Member'}
                                             </span>
