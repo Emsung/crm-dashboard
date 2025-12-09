@@ -261,6 +261,7 @@ export default function AnalyticsCharts({ leads, conversions = [], period, custo
         const timeToConvertData: number[] = [];
         conversions.forEach(conv => {
             // Only include conversions that happened in the selected period
+            if (!conv.memberSince) return;
             const conversionDate = new Date(conv.memberSince);
             if (conversionDate >= dateRange.start && conversionDate <= dateRange.end) {
                 const lead = leadsByMemberId.get(conv.memberId);

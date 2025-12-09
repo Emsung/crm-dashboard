@@ -112,6 +112,7 @@ export default function Overview({ data, leads, conversions, period, customStart
 
         // Current period conversions
         const currentPeriodConversions = conversions.filter(conversion => {
+            if (!conversion.memberSince) return false;
             const date = new Date(conversion.memberSince);
             return date >= currentRange.start && date <= currentRange.end;
         });
@@ -199,6 +200,7 @@ export default function Overview({ data, leads, conversions, period, customStart
         );
 
         const previousPeriodConversions = conversions.filter(conversion => {
+            if (!conversion.memberSince) return false;
             const date = new Date(conversion.memberSince);
             return date >= previousRange.start && date <= previousRange.end;
         });
@@ -273,6 +275,7 @@ export default function Overview({ data, leads, conversions, period, customStart
         // Only calculate time to convert for conversions that happened in the current period
         // Filter by conversion date (memberSince) within the selected period
         currentPeriodConversions.forEach(conv => {
+            if (!conv.memberSince) return;
             const lead = leadsByMemberId.get(conv.memberId);
             if (lead) {
                 const trialDate = new Date(lead.createdAt);
@@ -318,6 +321,7 @@ export default function Overview({ data, leads, conversions, period, customStart
 
         // Only calculate time to convert for conversions that happened in the previous period
         previousPeriodConversions.forEach(conv => {
+            if (!conv.memberSince) return;
             const lead = prevLeadsByMemberId.get(conv.memberId);
             if (lead) {
                 const trialDate = new Date(lead.createdAt);

@@ -46,12 +46,14 @@ export default function ConversionsTable({ conversions }: ConversionsTableProps)
                             </tr>
                             ) : (
                                 conversions.map((conversion, index) => {
-                                    const conversionDate = new Date(conversion.memberSince);
-                                    const conversionDateFormatted = conversionDate.toLocaleDateString('en-US', { 
-                                        year: 'numeric', 
-                                        month: 'short', 
-                                        day: 'numeric' 
-                                    });
+                                    const conversionDate = conversion.memberSince ? new Date(conversion.memberSince) : null;
+                                    const conversionDateFormatted = conversionDate 
+                                        ? conversionDate.toLocaleDateString('en-US', { 
+                                            year: 'numeric', 
+                                            month: 'short', 
+                                            day: 'numeric' 
+                                        })
+                                        : '-';
                                     
                                     // Calculate trial date and days to convert
                                     let trialDateFormatted = '-';
@@ -66,9 +68,11 @@ export default function ConversionsTable({ conversions }: ConversionsTableProps)
                                         });
                                         
                                         // Calculate days between trial and conversion
-                                        const daysDiff = Math.ceil((conversionDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
-                                        if (daysDiff >= 0) {
-                                            daysToConvert = daysDiff;
+                                        if (conversionDate) {
+                                            const daysDiff = Math.ceil((conversionDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
+                                            if (daysDiff >= 0) {
+                                                daysToConvert = daysDiff;
+                                            }
                                         }
                                     }
                                     
