@@ -16,10 +16,8 @@ export function mapMembershipType(paymentPlanName: string): string {
     return 'flex';
 }
 
-export async function POST(request: Request) {
+export async function handleContractCreated(body: any): Promise<NextResponse> {
     try {
-        const body = await request.json();
-        
         // Validate PerfectGym ContractCreated webhook payload
         if (body.event !== 'ContractCreated' || !body.data) {
             return NextResponse.json(
@@ -81,3 +79,4 @@ export async function POST(request: Request) {
         );
     }
 }
+

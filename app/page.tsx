@@ -1,12 +1,16 @@
-import { getDashboardData } from "./actions";
+import { getDashboardData, getGuestsData } from "./actions";
 import DashboardWrapper from "@/components/Dashboard/DashboardWrapper";
 import LeadGrid from "@/components/Dashboard/LeadGrid";
 import ConversionsTable from "@/components/Dashboard/ConversionsTable";
 import TabbedLayout from "@/components/Dashboard/TabbedLayout";
+import GuestsWrapper from "@/components/Dashboard/GuestsWrapper";
+import GuestsCityDashboard from "@/components/Dashboard/GuestsCityDashboard";
+import GuestsCityComparison from "@/components/Dashboard/GuestsCityComparison";
 import Header from "@/components/Header";
 
 export default async function Home() {
   const data = await getDashboardData();
+  const guestsData = await getGuestsData();
 
   return (
     <>
@@ -17,19 +21,33 @@ export default async function Home() {
           <p className="text-gray-600">Boxing Gym Analytics & Lead Management</p>
         </div>
 
-        <TabbedLayout>
-          <DashboardWrapper data={data} />
+        <TabbedLayout 
+          trialsContent={
+            <>
+              <DashboardWrapper data={data} />
 
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Latest Conversions</h2>
-            <ConversionsTable conversions={data.recentConversions} />
-          </div>
-
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Trial Management</h2>
-            <LeadGrid leads={data.leads} />
-          </div>
-        </TabbedLayout>
+              {/* Tables removed - only show statistics */}
+            </>
+          }
+          guestsContent={
+            <>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">City Performance Comparison</h2>
+                <GuestsCityComparison
+                  guests={guestsData.allGuests}
+                  conversions={guestsData.guestsWithConversionDetails}
+                />
+              </div>
+              <div className="mt-8">
+                <GuestsCityDashboard
+                  cityName="All Cities"
+                  allGuests={guestsData.allGuests}
+                  allConversions={guestsData.guestsWithConversionDetails}
+                />
+              </div>
+            </>
+          }
+        />
       </main>
     </>
   );

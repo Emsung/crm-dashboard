@@ -17,7 +17,7 @@ interface Conversion {
     membershipType: string;
 }
 
-type Period = 'current-month' | 'last-month' | 'last-3-months' | 'this-year' | 'last-year' | 'custom';
+type Period = 'all' | 'current-month' | 'last-month' | 'last-3-months' | 'this-year' | 'last-year' | 'custom';
 
 interface AnalyticsChartsProps {
     leads: Lead[];
@@ -30,7 +30,8 @@ interface AnalyticsChartsProps {
 
 export default function AnalyticsCharts({ leads, conversions = [], period, customStartDate = '', customEndDate = '', showTimeToConvert = true }: AnalyticsChartsProps) {
     // Determine if we should group by day or month
-    const groupByMonth = period === 'last-3-months' || period === 'this-year' || period === 'last-year' || 
+    // For 'all' period, always use month grouping to avoid performance issues (50+ years of days)
+    const groupByMonth = period === 'all' || period === 'last-3-months' || period === 'this-year' || period === 'last-year' || 
         (period === 'custom' && customStartDate && customEndDate && 
          (new Date(customEndDate).getTime() - new Date(customStartDate).getTime()) > 90 * 24 * 60 * 60 * 1000);
 
@@ -38,10 +39,25 @@ export default function AnalyticsCharts({ leads, conversions = [], period, custo
     const dateRange = useMemo(() => {
         const today = new Date();
         today.setHours(23, 59, 59, 999);
-        let startDate = new Date();
+        let startDate = new Date(0); // Very old date for "all"
         let endDate = new Date(today);
 
-        if (period === 'custom' && customStartDate && customEndDate) {
+        if (period === 'all') {
+            // For "all", use a reasonable date range (last 5 years or first lead date, whichever is more recent)
+            // This prevents performance issues with 50+ years of data
+            const fiveYearsAgo = new Date(today);
+            fiveYearsAgo.setFullYear(today.getFullYear() - 5);
+            
+            // Find the earliest lead date if available
+            let earliestLeadDate = fiveYearsAgo;
+            if (leads.length > 0) {
+                const firstLeadDate = new Date(Math.min(...leads.map(l => new Date(l.createdAt).getTime())));
+                earliestLeadDate = firstLeadDate < fiveYearsAgo ? firstLeadDate : fiveYearsAgo;
+            }
+            
+            startDate = earliestLeadDate;
+            endDate = new Date(today);
+        } else if (period === 'custom' && customStartDate && customEndDate) {
             startDate = new Date(customStartDate);
             startDate.setHours(0, 0, 0, 0);
             endDate = new Date(customEndDate);
@@ -67,7 +83,7 @@ export default function AnalyticsCharts({ leads, conversions = [], period, custo
         }
 
         return { start: startDate, end: endDate };
-    }, [period, customStartDate, customEndDate]);
+    }, [period, customStartDate, customEndDate, leads]);
 
     // Process historical bookings data (grouped by day or month)
     const bookingsData = useMemo(() => {

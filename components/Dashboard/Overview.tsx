@@ -23,7 +23,7 @@ interface Lead {
     memberId: string | null;
 }
 
-type Period = 'current-month' | 'last-month' | 'last-3-months' | 'this-year' | 'last-year' | 'custom';
+type Period = 'all' | 'current-month' | 'last-month' | 'last-3-months' | 'this-year' | 'last-year' | 'custom';
 
 interface OverviewProps {
     data: DashboardData;
@@ -39,10 +39,25 @@ export default function Overview({ data, leads, conversions, period, customStart
     const { currentRange, previousRange } = useMemo(() => {
         const today = new Date();
         today.setHours(23, 59, 59, 999); // End of today
-        let currentStart = new Date();
+        let currentStart = new Date(0); // Very old date for "all"
         let currentEnd = new Date(today);
 
-        if (period === 'custom' && customStartDate && customEndDate) {
+        if (period === 'all') {
+            // For "all", use a reasonable date range (last 5 years or first lead date, whichever is more recent)
+            // This prevents performance issues with 50+ years of data
+            const fiveYearsAgo = new Date(today);
+            fiveYearsAgo.setFullYear(today.getFullYear() - 5);
+            
+            // Find the earliest lead date if available
+            let earliestLeadDate = fiveYearsAgo;
+            if (leads.length > 0) {
+                const firstLeadDate = new Date(Math.min(...leads.map(l => new Date(l.createdAt).getTime())));
+                earliestLeadDate = firstLeadDate < fiveYearsAgo ? firstLeadDate : fiveYearsAgo;
+            }
+            
+            currentStart = earliestLeadDate;
+            currentEnd = new Date(today);
+        } else if (period === 'custom' && customStartDate && customEndDate) {
             currentStart = new Date(customStartDate);
             currentStart.setHours(0, 0, 0, 0);
             currentEnd = new Date(customEndDate);
@@ -80,7 +95,7 @@ export default function Overview({ data, leads, conversions, period, customStart
             currentRange: { start: currentStart, end: currentEnd },
             previousRange: { start: previousStart, end: previousEnd }
         };
-    }, [period, customStartDate, customEndDate]);
+    }, [period, customStartDate, customEndDate, leads]);
 
     // Calculate metrics for current and previous periods
     const metrics = useMemo(() => {

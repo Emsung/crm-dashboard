@@ -1,10 +1,12 @@
-import { getDashboardData } from "../actions";
+import { getDashboardData, getGuestsData } from "../actions";
 import CityDashboard from "@/components/Dashboard/CityDashboard";
+import GuestsCityDashboard from "@/components/Dashboard/GuestsCityDashboard";
 import TabbedLayout from "@/components/Dashboard/TabbedLayout";
 import Header from "@/components/Header";
 
 export default async function AntwerpPage() {
   const data = await getDashboardData();
+  const guestsData = await getGuestsData();
   const antwerpLeads = data.leads.filter(lead => lead.city.toLowerCase() === 'antwerpen');
 
   return (
@@ -16,13 +18,22 @@ export default async function AntwerpPage() {
           <p className="text-gray-600">Boxing Gym Analytics & Lead Management</p>
         </div>
 
-        <TabbedLayout>
-          <CityDashboard 
-            cityName="Antwerp" 
-            leads={antwerpLeads} 
-            allConversions={data.allConversions}
-          />
-        </TabbedLayout>
+        <TabbedLayout
+          trialsContent={
+            <CityDashboard 
+              cityName="Antwerp" 
+              leads={antwerpLeads} 
+              allConversions={data.allConversions}
+            />
+          }
+          guestsContent={
+            <GuestsCityDashboard
+              cityName="Antwerp"
+              allGuests={guestsData.allGuests}
+              allConversions={guestsData.guestsWithConversionDetails}
+            />
+          }
+        />
       </main>
     </>
   );

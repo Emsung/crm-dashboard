@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface TabbedLayoutProps {
-    children: React.ReactNode;
+    trialsContent: React.ReactNode;
+    guestsContent: React.ReactNode;
 }
 
 const cities = [
@@ -21,9 +22,21 @@ const cities = [
     { name: 'Zürich', path: '/zurich', key: 'zurich' },
 ];
 
-export default function TabbedLayout({ children }: TabbedLayoutProps) {
+export default function TabbedLayout({ trialsContent, guestsContent }: TabbedLayoutProps) {
     const pathname = usePathname();
-    const [activeTab, setActiveTab] = useState<'trials' | 'course'>('trials');
+    const searchParams = useSearchParams();
+    
+    // Get tab from URL params, default to 'trials'
+    const tabFromUrl = searchParams.get('tab') as 'trials' | 'guests' | null;
+    const [activeTab, setActiveTab] = useState<'trials' | 'guests'>(tabFromUrl || 'trials');
+    
+    // Update tab when URL changes
+    useEffect(() => {
+        const tab = searchParams.get('tab') as 'trials' | 'guests' | null;
+        if (tab && (tab === 'trials' || tab === 'guests')) {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
     
     // Determine current city from pathname
     const currentCity = cities.find(city => {
@@ -33,44 +46,68 @@ export default function TabbedLayout({ children }: TabbedLayoutProps) {
         // Match exact path or path with trailing content (like /antwerp matching /antwerp)
         return pathname === city.path || pathname.startsWith(city.path + '/');
     }) || cities[0];
+    
+    // Helper to build city link with all current params (tab, period, etc.)
+    const getCityLink = (cityPath: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        // Always preserve tab when switching cities (use current activeTab if not in URL)
+        params.set('tab', activeTab);
+        // Preserve period and custom date params if they exist
+        // (period, startDate, endDate are already in searchParams if set)
+        return `${cityPath}?${params.toString()}`;
+    };
 
     return (
         <div className="space-y-6">
             {/* Main Tabs */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1">
                 <div className="flex gap-2">
-                    <button
-                        onClick={() => setActiveTab('trials')}
-                        className={`flex-1 px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    <Link
+                        href={getCityLink(pathname)}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            const params = new URLSearchParams(searchParams.toString());
+                            params.set('tab', 'trials');
+                            window.history.pushState({}, '', `${pathname}?${params.toString()}`);
+                            setActiveTab('trials');
+                        }}
+                        className={`flex-1 px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-center ${
                             activeTab === 'trials'
                                 ? 'bg-indigo-600 text-white shadow-md'
                                 : 'text-gray-700 hover:bg-gray-50'
                         }`}
                     >
                         Trials
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('course')}
-                        disabled
-                        className={`flex-1 px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                            activeTab === 'course'
+                    </Link>
+                    <Link
+                        href={getCityLink(pathname)}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            const params = new URLSearchParams(searchParams.toString());
+                            params.set('tab', 'guests');
+                            window.history.pushState({}, '', `${pathname}?${params.toString()}`);
+                            setActiveTab('guests');
+                        }}
+                        className={`flex-1 px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-center ${
+                            activeTab === 'guests'
                                 ? 'bg-indigo-600 text-white shadow-md'
-                                : 'text-gray-400 cursor-not-allowed'
+                                : 'text-gray-700 hover:bg-gray-50'
                         }`}
                     >
-                        Course (Coming Soon)
-                    </button>
+                        Guests
+                    </Link>
                 </div>
             </div>
 
-            {/* City Navigation (only show for Trials tab) */}
-            {activeTab === 'trials' && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                    <div className="flex gap-2 flex-wrap">
-                        {cities.map((city) => (
+            {/* City Navigation */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div className="flex gap-2 flex-wrap">
+                    {cities.map((city) => {
+                        const cityLink = getCityLink(city.path);
+                        return (
                             <Link
                                 key={city.key}
-                                href={city.path}
+                                href={cityLink}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                                     currentCity.key === city.key
                                         ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
@@ -79,18 +116,14 @@ export default function TabbedLayout({ children }: TabbedLayoutProps) {
                             >
                                 {city.name}
                             </Link>
-                        ))}
-                    </div>
+                        );
+                    })}
                 </div>
-            )}
+            </div>
 
             {/* Content */}
             <div>
-                {activeTab === 'trials' ? children : (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                        <p className="text-gray-500 text-lg">Course tab coming soon...</p>
-                    </div>
-                )}
+                {activeTab === 'trials' ? trialsContent : guestsContent}
             </div>
         </div>
     );

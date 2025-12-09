@@ -17,7 +17,7 @@ interface DashboardWrapperProps {
     data: DashboardData;
 }
 
-type Period = 'current-month' | 'last-month' | 'last-3-months' | 'this-year' | 'last-year' | 'custom';
+type Period = 'all' | 'current-month' | 'last-month' | 'last-3-months' | 'this-year' | 'last-year' | 'custom';
 
 export default function DashboardWrapper({ data }: DashboardWrapperProps) {
     const [period, setPeriod] = useState<Period>('current-month');

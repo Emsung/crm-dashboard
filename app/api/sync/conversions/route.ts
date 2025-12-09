@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { trialBookings, conversions } from '@/lib/db/schema';
-import { eq, and, isNull, isNotNull, notInArray, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, sql } from 'drizzle-orm';
+import { getCountryFromCity } from '@/lib/perfectgym-utils';
 
 // Platform configurations with API credentials from environment variables
 type Platform = 'DE' | 'NL' | 'CH' | 'AT';
@@ -228,26 +229,42 @@ export async function GET() {
   
   try {
     // Get all trial bookings that have a memberId but no conversion yet
+    // We need to check by both memberId and city since memberId can be duplicate between portals
     console.log('[Sync Conversions] Fetching existing conversions...');
-    const existingConversions = await db.select({ memberId: conversions.memberId })
+    const existingConversions = await db.select({ 
+      memberId: conversions.memberId,
+      city: conversions.city 
+    })
       .from(conversions);
 
-    const existingMemberIds = existingConversions.map(c => c.memberId).filter(Boolean);
-    console.log(`[Sync Conversions] Found ${existingMemberIds.length} existing conversions`);
+    // Create a set of memberId+city combinations to check against
+    const existingMemberCitySet = new Set(
+      existingConversions
+        .filter(c => c.memberId && c.city)
+        .map(c => `${c.memberId}:${c.city}`)
+    );
+    console.log(`[Sync Conversions] Found ${existingMemberCitySet.size} existing conversions (by memberId+city)`);
 
     // Build the where condition
+    // Filter out trials that already have conversions (by memberId+country combination)
     const conditions = [isNotNull(trialBookings.memberId)];
     
-    if (existingMemberIds.length > 0) {
-      conditions.push(notInArray(trialBookings.memberId, existingMemberIds));
-    }
+    // Note: We can't easily filter in SQL by memberId+country combination,
+    // so we'll filter in JavaScript after fetching
 
     console.log('[Sync Conversions] Fetching trials to check...');
-    const trialsToCheck = await db.select()
+    const allTrials = await db.select()
       .from(trialBookings)
       .where(and(...conditions));
 
-    console.log(`[Sync Conversions] Found ${trialsToCheck.length} trials to check`);
+    // Filter out trials that already have conversions (by memberId+city combination)
+    const trialsToCheck = allTrials.filter(trial => {
+      if (!trial.memberId || !trial.city) return false;
+      const key = `${trial.memberId}:${trial.city}`;
+      return !existingMemberCitySet.has(key);
+    });
+
+    console.log(`[Sync Conversions] Found ${trialsToCheck.length} trials to check (filtered from ${allTrials.length} total)`);
 
     if (trialsToCheck.length === 0) {
       return NextResponse.json({
@@ -274,20 +291,36 @@ export async function GET() {
     for (let i = 0; i < trialsToProcess.length; i++) {
       const trial = trialsToProcess[i];
       console.log(`[Sync Conversions] Processing trial ${i + 1}/${trialsToProcess.length} (memberId: ${trial.memberId})`);
-      if (!trial.memberId || !trial.country) {
+      if (!trial.memberId || !trial.city) {
         continue;
       }
 
-      const config = await getPerfectGymConfig(trial.country);
+      // Get country from city for PerfectGym config
+      const country = getCountryFromCity(trial.city);
+      if (!country) {
+        errors.push(`Could not determine country from city: ${trial.city} (memberId: ${trial.memberId})`);
+        continue;
+      }
+
+      const config = await getPerfectGymConfig(country);
       if (!config) {
         errors.push(`No API config found for country: ${trial.country} (memberId: ${trial.memberId})`);
         continue;
       }
 
       // Check for existing conversions (can have both course and membership)
-      const existingConversions = await db.select()
+      // Filter by both memberId and city to differentiate between portals
+      const existingConversions = await db.select({
+        id: conversions.id,
+        memberId: conversions.memberId,
+        city: conversions.city,
+        membershipType: conversions.membershipType,
+      })
         .from(conversions)
-        .where(eq(conversions.memberId, trial.memberId));
+        .where(and(
+          eq(conversions.memberId, trial.memberId),
+          eq(conversions.city, trial.city)
+        ));
 
       const hasCourseConversion = existingConversions.some(c => c.membershipType === 'course');
       const hasMembershipConversion = existingConversions.some(c => c.membershipType === 'flex' || c.membershipType === 'loyalty');
@@ -304,21 +337,55 @@ export async function GET() {
       if (membershipCheck.hasMembership && membershipCheck.memberSince) {
         conversionsFound++;
         try {
-          // Create new membership conversion
-          await db.insert(conversions).values({
-            memberId: trial.memberId,
-            memberSince: membershipCheck.memberSince,
-            membershipType: membershipCheck.membershipType || 'flex',
-          });
-          conversionsCreated++;
+          // Check if there's an existing 'course' conversion (Trial → Course → Member)
           if (hasCourseConversion) {
-            console.log(`[Sync Conversions] Created membership conversion for course participant ${trial.memberId} (Course → Member)`);
+            // Find the course conversion record to update it
+            const courseConversion = existingConversions.find(
+              c => c.memberId === trial.memberId && c.membershipType === 'course'
+            );
+            
+            if (courseConversion) {
+              // Update the existing course conversion to membership
+              // This is Trial → Course → Member, so hadCourseStep = true
+              await db.update(conversions)
+                .set({
+                  memberSince: membershipCheck.memberSince,
+                  membershipType: membershipCheck.membershipType || 'flex',
+                  source: 'trial',
+                  hadCourseStep: true, // Had course step before membership
+                })
+                .where(eq(conversions.id, courseConversion.id));
+              conversionsCreated++;
+              console.log(`[Sync Conversions] Updated course conversion to membership for ${trial.memberId} (Trial → Course → Member)`);
+            } else {
+              // Course conversion exists but we can't find the record, create new one
+            await db.insert(conversions).values({
+              memberId: trial.memberId,
+              city: trial.city,
+              memberSince: membershipCheck.memberSince,
+              membershipType: membershipCheck.membershipType || 'flex',
+              source: 'trial',
+              hadCourseStep: true,
+            });
+              conversionsCreated++;
+              console.log(`[Sync Conversions] Created membership conversion for course participant ${trial.memberId} (Course → Member)`);
+            }
           } else {
+            // Direct Trial → Member conversion
+            await db.insert(conversions).values({
+              memberId: trial.memberId,
+              city: trial.city,
+              memberSince: membershipCheck.memberSince,
+              membershipType: membershipCheck.membershipType || 'flex',
+              source: 'trial',
+              hadCourseStep: false, // Direct conversion, no course step
+            });
+            conversionsCreated++;
             console.log(`[Sync Conversions] Created membership conversion for ${trial.memberId} (Trial → Member)`);
           }
           continue; // Skip course check if membership found
         } catch (error) {
-          errors.push(`Failed to create membership conversion for member ${trial.memberId}: ${error}`);
+          errors.push(`Failed to create conversion for membership ${trial.memberId}: ${error}`);
           continue;
         }
       }
@@ -333,10 +400,14 @@ export async function GET() {
           try {
             // For purchase conversions (beginners package), use the purchase date
             // and set membershipType to 'course' to distinguish from direct memberships
+            // This is Trial → Course, so source is 'trial' and hadCourseStep is false (this IS the course step)
             await db.insert(conversions).values({
               memberId: trial.memberId,
+              city: trial.city,
               memberSince: purchaseCheck.purchaseDate,
               membershipType: 'course', // Course participant (beginners package purchase) - Trial → Course
+              source: 'trial',
+              hadCourseStep: false, // This is the course step itself, not a step before membership
             });
             conversionsCreated++;
             console.log(`[Sync Conversions] Created course conversion for ${trial.memberId} (Trial → Course)`);

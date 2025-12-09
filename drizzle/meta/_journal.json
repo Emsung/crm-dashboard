@@ -15,6 +15,27 @@
       "when": 1764102750918,
       "tag": "0001_small_darwin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764762677101,
+      "tag": "0002_good_tiger_shark",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1764772328428,
+      "tag": "0003_skinny_white_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1764837247673,
+      "tag": "0004_flawless_black_cat",
+      "breakpoints": true
     }
   ]
 }
